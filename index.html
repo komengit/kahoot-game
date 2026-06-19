@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuizBlast 🎮</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Lobby Screen -->
+  <div id="screen-lobby" class="screen active">
+    <div class="logo">🎮 QuizBlast</div>
+    <p class="tagline">เกมส์ตอบคำถามสุดมันส์!</p>
+    <input id="player-name" type="text" placeholder="ชื่อของคุณ..." maxlength="20" />
+    <button id="btn-start" onclick="startGame()">เริ่มเล่น ▶</button>
+  </div>
+
+  <!-- Question Screen -->
+  <div id="screen-question" class="screen">
+    <div class="top-bar">
+      <span id="question-counter">คำถาม 1/10</span>
+      <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
+      <span id="timer-text">20</span>
+    </div>
+    <div id="question-text" class="question-text">?</div>
+    <div id="choices" class="choices-grid"></div>
+  </div>
+
+  <!-- Result Screen (per question) -->
+  <div id="screen-result" class="screen">
+    <div id="result-icon" class="result-icon">✅</div>
+    <div id="result-msg" class="result-msg">ถูกต้อง!</div>
+    <div id="result-points" class="result-points">+800</div>
+    <div id="correct-answer-label" class="correct-label"></div>
+    <button onclick="nextQuestion()">ถัดไป →</button>
+  </div>
+
+  <!-- Final Screen -->
+  <div id="screen-final" class="screen">
+    <div class="final-trophy">🏆</div>
+    <h2 id="final-name"></h2>
+    <div id="final-score" class="final-score"></div>
+    <div id="final-rank" class="final-rank"></div>
+    <div id="leaderboard" class="leaderboard"></div>
+    <button onclick="restartGame()">เล่นอีกครั้ง 🔄</button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
