@@ -10,13 +10,13 @@
 //  ► ถ้ายังไม่ตั้งค่า เกมส์จะรันใน Local Mode (บอท) โดยอัตโนมัติ
 // ─────────────────────────────────────────────────────────────────
 const FIREBASE_CONFIG = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+  apiKey:            "AIzaSyCNDa2i6PNjIkbaMedYjPPLhC9kowFl_IE",
+  authDomain:        "amd-quiz-game-ccd92.firebaseapp.com",
+  databaseURL:       "https://amd-quiz-game-ccd92-default-rtdb.firebaseio.com",
+  projectId:         "amd-quiz-game-ccd92",
+  storageBucket:     "amd-quiz-game-ccd92.firebasestorage.app",
+  messagingSenderId: "981336749760",
+  appId:             "1:981336749760:web:ba85920aaa743177451f25"
 };
 
 // ─────────────────────────────────────────────────────────────────
