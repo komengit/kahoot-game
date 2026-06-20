@@ -75,6 +75,7 @@ const BOT_DATA = [
 //  ► สร้าง Google Apps Script → Deploy → ใส่ URL ด้านล่าง
 // ─────────────────────────────────────────────────────────────────
 const SHEETS_WEBHOOK_URL = '';  // ← วาง Web App URL ที่นี่
+const ADMIN_EMAIL        = 'nookpass@gmail.com';  // ← เฉพาะ email นี้เห็น Dashboard
 
 // ─────────────────────────────────────────────────────────────────
 //  GAME STATE
@@ -183,7 +184,8 @@ function _updateMenuUI() {
   if (currentUser) {
     bar.style.display     = '';
     if (nameEl)   nameEl.textContent  = '👤 ' + currentUser.email;
-    if (dashBtn)  dashBtn.style.display  = '';
+    const isAdmin = currentUser.email === ADMIN_EMAIL;
+    if (dashBtn)  dashBtn.style.display  = isAdmin ? '' : 'none';
     if (loginBtn) loginBtn.style.display = 'none';
   } else {
     bar.style.display = 'none';
@@ -1188,7 +1190,8 @@ async function saveGameResult() {
       isOnline,
       roomCode:    roomCode || null,
     };
-    await db.ref('users/' + currentUser.uid + '/results').push(result);
+    result.savedBy = currentUser.uid;
+    await db.ref('results').push(result);
     if (SHEETS_WEBHOOK_URL) {
       fetch(SHEETS_WEBHOOK_URL, {
         method: 'POST', mode: 'no-cors',
@@ -1202,43 +1205,101 @@ async function saveGameResult() {
 // ─────────────────────────────────────────────────────────────────
 //  DASHBOARD
 // ─────────────────────────────────────────────────────────────────
+window._dashData = [];
+
 async function showDashboard() {
   sfxClick();
-  if (!currentUser) { show('screen-login'); return; }
-  const el = document.getElementById('dashboard-list');
-  const du = document.getElementById('dashboard-user');
-  if (du) du.textContent = '👤 ' + currentUser.email;
-  if (el) el.innerHTML = '<p style="opacity:.6;text-align:center">⏳ กำลังโหลด...</p>';
+  if (!currentUser || currentUser.email !== ADMIN_EMAIL) {
+    alert('เฉพาะ Admin เท่านั้น'); return;
+  }
+  const el    = document.getElementById('dashboard-list');
+  const du    = document.getElementById('dashboard-user');
+  const stats = document.getElementById('dashboard-stats');
+  if (du)    du.textContent = '👤 ' + currentUser.email;
+  if (el)    el.innerHTML   = '<p style="opacity:.6;text-align:center">⏳ กำลังโหลดข้อมูลทั้งหมด...</p>';
+  if (stats) stats.textContent = '';
   show('screen-dashboard');
+
   try {
-    const snap = await db.ref('users/' + currentUser.uid + '/results')
-      .orderByChild('date').limitToLast(20).once('value');
+    const snap = await db.ref('results').orderByChild('date').limitToLast(100).once('value');
     const data = snap.val();
     if (!data || !el) {
       if (el) el.innerHTML = '<p style="opacity:.6;text-align:center">ยังไม่มีประวัติการเล่น</p>';
       return;
     }
-    const rows = Object.values(data).reverse().map(r => {
+    const all = Object.values(data).sort((a,b) => b.date > a.date ? 1 : -1);
+    window._dashData = all;
+
+    // Stats summary
+    const totalPlayers = all.reduce((s,r) => s + (r.playerCount||0), 0);
+    if (stats) stats.innerHTML =
+      '<span>🎮 ' + all.length + ' ครั้ง</span>' +
+      '<span>👥 ' + totalPlayers + ' คน (รวม)</span>';
+
+    // Cards
+    const medals = ['🥇','🥈','🥉'];
+    el.innerHTML = all.map((r, idx) => {
       const d    = new Date(r.date);
       const date = d.toLocaleDateString('th-TH', { day:'2-digit', month:'short', year:'numeric' });
       const time = d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
-      const top3 = (r.players || []).slice(0, 3);
-      const medals = ['🥇','🥈','🥉'];
-      const podium = top3.map((p,i) =>
-        '<span class="dash-player">' + medals[i] + ' ' + p.name +
-        ' <b>' + (p.score != null ? p.score.toLocaleString() : 0) + ' pt</b></span>'
+      const players = r.players || [];
+      const rows = players.map((p, i) =>
+        '<div class="dash-player-row">' +
+        '<span class="dash-rank">' + (medals[i] || '#' + (i+1)) + '</span>' +
+        '<span class="dash-pname">' + p.name + '</span>' +
+        '<span class="dash-pscore">' + (p.score != null ? p.score.toLocaleString() : 0) + ' pt</span>' +
+        '</div>'
       ).join('');
       return '<div class="dash-card">' +
-        '<div class="dash-card-title">' + (r.setName || '—') + '</div>' +
+        '<div class="dash-card-title">' + (r.setName||'—') + ' <span class="dash-session">#' + (all.length - idx) + '</span></div>' +
         '<div class="dash-card-meta">' + date + ' ' + time +
-        ' · ' + (r.playerCount || '?') + ' คน' +
-        ' · ' + (r.isOnline ? '🌐 Online' : '🤖 Local') + '</div>' +
-        '<div class="dash-card-players">' + podium + '</div></div>';
-    });
-    el.innerHTML = rows.join('');
+        ' · ' + (r.playerCount||players.length) + ' คน' +
+        ' · ' + (r.isOnline ? '🌐 Online' : '🤖 Local') +
+        (r.roomCode ? ' · ' + r.roomCode : '') + '</div>' +
+        '<div class="dash-player-list">' + rows + '</div></div>';
+    }).join('');
   } catch(e) {
-    if (el) el.innerHTML = '<p style="color:#e74c3c">เกิดข้อผิดพลาด: ' + e.message + '</p>';
+    if (el) el.innerHTML = '<p style="color:#e74c3c">Error: ' + e.message + '</p>';
   }
+}
+
+function exportDashboardXLSX() {
+  if (!window._dashData || !window._dashData.length) {
+    alert('ไม่มีข้อมูล — โหลด Dashboard ก่อน'); return;
+  }
+  if (typeof XLSX === 'undefined') { alert('กำลังโหลด XLSX library...'); return; }
+
+  const header = ['ครั้งที่','วันที่','เวลา','ชุดคำถาม','โหมด','จำนวนผู้เล่น','อันดับ','ชื่อผู้เล่น','คะแนน','รหัสห้อง'];
+  const aoa    = [header];
+  const all    = window._dashData;
+
+  all.forEach((r, si) => {
+    const d    = new Date(r.date);
+    const date = d.toLocaleDateString('th-TH');
+    const time = d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+    const mode = r.isOnline ? 'Online' : 'Local';
+    const sessionNo = all.length - si;
+    (r.players || []).forEach((p, i) => {
+      aoa.push([
+        sessionNo, date, time,
+        r.setName || '—',
+        mode,
+        r.playerCount || (r.players||[]).length,
+        i + 1,
+        p.name,
+        p.score != null ? p.score : 0,
+        r.roomCode || '—'
+      ]);
+    });
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:8},{wch:14},{wch:8},{wch:28},{wch:8},{wch:14},{wch:8},{wch:22},{wch:10},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Game Results');
+  const fname = 'AMD_Quiz_' + new Date().toISOString().slice(0,10) + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  sfxCorrect();
 }
 
 // ─────────────────────────────────────────────────────────────────
