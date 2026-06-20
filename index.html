@@ -1,49 +1,93 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QuizBlast 🎮</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
-  <!-- Lobby Screen -->
-  <div id="screen-lobby" class="screen active">
+  <!-- ① MENU -->
+  <div id="screen-menu" class="screen active">
     <div class="logo">🎮 QuizBlast</div>
     <p class="tagline">เกมส์ตอบคำถามสุดมันส์!</p>
-    <input id="player-name" type="text" placeholder="ชื่อของคุณ..." maxlength="20" />
-    <button id="btn-start" onclick="startGame()">เริ่มเล่น ▶</button>
+    <div class="menu-btns">
+      <button onclick="showSets()">▶ เล่นเกมส์</button>
+      <button class="btn-sec" onclick="showEditor(null)">✏️ สร้างชุดคำถาม</button>
+    </div>
   </div>
 
-  <!-- Question Screen -->
+  <!-- ② SET PICKER -->
+  <div id="screen-sets" class="screen">
+    <h2 class="stitle">เลือกชุดคำถาม</h2>
+    <div id="set-list" class="set-list"></div>
+    <div class="row-btns">
+      <button class="btn-sec" onclick="sfxClick();show('screen-menu')">← กลับ</button>
+      <button onclick="startWithSet()">เล่นเลย ▶</button>
+    </div>
+  </div>
+
+  <!-- ③ EDITOR -->
+  <div id="screen-editor" class="screen">
+    <h2 class="stitle">✏️ แก้ไขชุดคำถาม</h2>
+    <input id="set-name-input" class="wide-input" type="text" placeholder="ชื่อชุดคำถาม..."/>
+    <div id="editor-questions" class="editor-qs"></div>
+    <button class="btn-add-q" onclick="addQ()">＋ เพิ่มคำถาม</button>
+    <div class="row-btns">
+      <button class="btn-sec" onclick="sfxClick();show('screen-menu')">← ยกเลิก</button>
+      <button onclick="saveSet()">💾 บันทึก</button>
+    </div>
+  </div>
+
+  <!-- ④ QR -->
+  <div id="screen-qr" class="screen">
+    <div class="qr-head">📱 แสกน QR เพื่อเข้าร่วม</div>
+    <div id="qr-box" class="qr-box"></div>
+    <div id="qr-url" class="qr-url"></div>
+    <p class="qr-hint">แชร์ลิงค์นี้ให้เพื่อนเปิดบน Browser</p>
+    <button onclick="goLobby()">เข้าร่วมเลย →</button>
+  </div>
+
+  <!-- ⑤ LOBBY -->
+  <div id="screen-lobby" class="screen">
+    <div class="logo">🎮 QuizBlast</div>
+    <p class="tagline">ใส่ชื่อแล้วสู้เลย!</p>
+    <input id="player-name" type="text" placeholder="ชื่อของคุณ..." maxlength="20"/>
+    <button onclick="startGame()">เริ่มเล่น ▶</button>
+    <button class="btn-sec sml" onclick="sfxClick();show('screen-menu')">← หน้าหลัก</button>
+  </div>
+
+  <!-- ⑥ QUESTION -->
   <div id="screen-question" class="screen">
     <div class="top-bar">
-      <span id="question-counter">คำถาม 1/10</span>
+      <span id="q-counter">คำถาม 1/10</span>
       <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
-      <span id="timer-text">20</span>
+      <span id="timer-text" class="timer-num">20</span>
     </div>
     <div id="question-text" class="question-text">?</div>
     <div id="choices" class="choices-grid"></div>
   </div>
 
-  <!-- Result Screen (per question) -->
+  <!-- ⑦ RESULT -->
   <div id="screen-result" class="screen">
-    <div id="result-icon" class="result-icon">✅</div>
-    <div id="result-msg" class="result-msg">ถูกต้อง!</div>
-    <div id="result-points" class="result-points">+800</div>
-    <div id="correct-answer-label" class="correct-label"></div>
+    <div id="res-icon" class="res-icon">✅</div>
+    <div id="res-msg"  class="res-msg">ถูกต้อง!</div>
+    <div id="res-pts"  class="res-pts">+800</div>
+    <div id="res-ans"  class="res-ans"></div>
     <button onclick="nextQuestion()">ถัดไป →</button>
   </div>
 
-  <!-- Final Screen -->
+  <!-- ⑧ FINAL -->
   <div id="screen-final" class="screen">
-    <div class="final-trophy">🏆</div>
+    <div class="trophy">🏆</div>
     <h2 id="final-name"></h2>
     <div id="final-score" class="final-score"></div>
-    <div id="final-rank" class="final-rank"></div>
+    <div id="final-rank"  class="final-rank"></div>
     <div id="leaderboard" class="leaderboard"></div>
-    <button onclick="restartGame()">เล่นอีกครั้ง 🔄</button>
+    <button onclick="sfxClick();show('screen-lobby')">เล่นอีกครั้ง 🔄</button>
+    <button class="btn-sec sml" onclick="sfxClick();show('screen-menu')">🏠 หน้าหลัก</button>
   </div>
 
   <script src="game.js"></script>
