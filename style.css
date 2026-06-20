@@ -469,3 +469,53 @@ button:active{transform:translateY(0)}
   font-size:1.15rem;opacity:.75;
   padding:28px 16px;letter-spacing:.3px;
 }
+
+/* ══════════════════════════════════════════════════════
+   LOGIN SCREEN
+══════════════════════════════════════════════════════ */
+.login-form{
+  width:100%;max-width:320px;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+}
+.login-btns{display:flex;gap:10px;width:100%;margin-bottom:6px}
+.login-btns button{flex:1;padding:11px 10px;font-size:.93rem}
+.login-skip{font-size:.82rem!important;opacity:.7;padding:8px 20px!important;margin-top:4px}
+.login-error{
+  min-height:22px;font-size:.85rem;color:#e74c3c;
+  margin-bottom:8px;text-align:center;width:100%;
+}
+
+/* ══════════════════════════════════════════════════════
+   MENU USER BAR
+══════════════════════════════════════════════════════ */
+.menu-user-bar{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:rgba(46,204,113,.15);border:1px solid rgba(46,204,113,.3);
+  border-radius:40px;padding:6px 16px;margin-bottom:14px;font-size:.83rem;
+}
+.menu-user-name{color:#2ecc71;font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ══════════════════════════════════════════════════════
+   DASHBOARD SCREEN
+══════════════════════════════════════════════════════ */
+.dash-user{
+  font-size:.85rem;opacity:.7;margin-bottom:10px;
+}
+.dashboard-list{
+  width:100%;max-height:65vh;overflow-y:auto;
+  display:flex;flex-direction:column;gap:10px;margin-bottom:10px;
+}
+.dash-card{
+  background:rgba(255,255,255,.08);border-radius:14px;
+  padding:14px 16px;text-align:left;
+  animation:fadeIn .3s ease;
+}
+.dash-card-title{font-size:1rem;font-weight:800;margin-bottom:4px}
+.dash-card-meta{font-size:.78rem;opacity:.6;margin-bottom:8px}
+.dash-card-players{display:flex;flex-wrap:wrap;gap:6px}
+.dash-player{
+  font-size:.8rem;
+  background:rgba(255,255,255,.1);
+  border-radius:20px;padding:3px 10px;
+}
+.dash-player b{color:#f1c40f}
