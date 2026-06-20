@@ -56,7 +56,7 @@ const DEFAULT_SET = {
 // ─────────────────────────────────────────────────────────────────
 const CHOICE_COLORS = ['#e74c3c','#3498db','#f39c12','#9b59b6'];
 const ICONS         = ['▲','♦','●','■'];
-const MAX_TIME      = 20;
+const MAX_TIME      = 15;
 const PLAYER_COLORS = [
   '#e84393','#3498db','#2ecc71','#f39c12',
   '#9b59b6','#e74c3c','#1abc9c','#e67e22',
