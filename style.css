@@ -445,3 +445,27 @@ button:active{transform:translateY(0)}
   animation:blink 1.4s ease-in-out infinite;
   margin-top:10px;
 }
+
+
+/* ══════════════════════════════════════════════════════
+   MUTE BUTTON
+══════════════════════════════════════════════════════ */
+.mute-btn{
+  position:fixed;bottom:16px;right:16px;
+  padding:0!important;border-radius:50%!important;
+  font-size:1.3rem!important;line-height:1;
+  background:rgba(255,255,255,.15)!important;
+  box-shadow:none!important;
+  z-index:100;width:46px;height:46px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.mute-btn:hover{background:rgba(255,255,255,.28)!important;transform:none}
+
+/* ══════════════════════════════════════════════════════
+   MID-LB FINAL MESSAGE (last question — no scores)
+══════════════════════════════════════════════════════ */
+.mid-lb-final-msg{
+  font-size:1.15rem;opacity:.75;
+  padding:28px 16px;letter-spacing:.3px;
+}
