@@ -1205,7 +1205,7 @@ async function saveGameResult() {
 // ─────────────────────────────────────────────────────────────────
 //  DASHBOARD
 // ─────────────────────────────────────────────────────────────────
-window._dashData = [];
+window._dashData = null;
 
 async function showDashboard() {
   sfxClick();
@@ -1264,8 +1264,13 @@ async function showDashboard() {
 }
 
 function exportDashboardXLSX() {
-  if (!window._dashData || !window._dashData.length) {
-    alert('ไม่มีข้อมูล — โหลด Dashboard ก่อน'); return;
+  if (window._dashData === null || window._dashData === undefined) {
+    alert('กรุณาเปิด Dashboard ก่อนแล้วกด Export');
+    return;
+  }
+  if (window._dashData.length === 0) {
+    alert('ยังไม่มีประวัติการเล่น (เล่นเกมส์อย่างน้อย 1 ครั้งก่อน)');
+    return;
   }
   if (typeof XLSX === 'undefined') { alert('กำลังโหลด XLSX library...'); return; }
 
