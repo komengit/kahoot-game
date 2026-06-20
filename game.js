@@ -99,6 +99,7 @@ let roomRef      = null;
 let db           = null;
 let _fbListeners = [];
 let _revealPending = false;
+let _answerWatchRef = null;
 
 // ─────────────────────────────────────────────────────────────────
 //  FIREBASE INIT
@@ -489,13 +490,7 @@ async function joinRoomOnline() {
 //  ⑤ LOBBY — ONLINE HOST
 // ─────────────────────────────────────────────────────────────────
 async function goLobbyOnlineHost() {
-  const hostName = (prompt('ใส่ชื่อของคุณ (Host):', 'Host 👑') || 'Host 👑').slice(0, 20);
-  myColor = PLAYER_COLORS[0];
-
-  const pRef = roomRef.child('players/' + myPlayerId);
-  await pRef.set({ name: hostName, color: myColor, score: 0, isHost: true });
-  pRef.onDisconnect().remove();
-
+  // Host is controller only — NOT added to players list
   isHost = true;
   showLobbyWait(true);
   startBGM();
@@ -576,13 +571,14 @@ function attachLobbyListeners() {
       score:  p.score || 0,
       color:  p.color || '#e84393',
       isMe:   id === myPlayerId,
-      isHost: !!p.isHost
+      isHost: false
     }));
     renderLobbyPlayers();
 
     if (isHost) {
       const n = allPlayers.length;
-      document.getElementById('lobby-status').textContent = `✅ ผู้เล่น ${n} คน`;
+      document.getElementById('lobby-status').textContent =
+        n === 0 ? '⏳ รอผู้เล่นเข้าร่วม...' : `✅ ผู้เล่น ${n} คน — พร้อมเริ่ม!`;
       document.getElementById('host-start-btn').style.display = n >= 1 ? '' : 'none';
     }
   });
@@ -599,10 +595,13 @@ function attachLobbyListeners() {
     currentQ   = room.currentQ   || 0;
 
     if (status === 'question') {
+      _revealPending = false;
       buildPrevSnapshot();
       renderQuestion(room);
       show('screen-question');
+      if (isHost) watchAnswersForReveal(currentQ);
     } else if (status === 'reveal') {
+      if (_answerWatchRef) { _answerWatchRef.off(); _answerWatchRef = null; }
       doReveal(room);
     } else if (status === 'midlb') {
       syncScores(room);
@@ -611,6 +610,28 @@ function attachLobbyListeners() {
       syncScores(room);
       stopBGM();
       showFinal();
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  WATCH ANSWERS FOR AUTO-REVEAL (Host only)
+// ─────────────────────────────────────────────────────────────────
+function watchAnswersForReveal(qIdx) {
+  if (_answerWatchRef) { _answerWatchRef.off(); _answerWatchRef = null; }
+  _answerWatchRef = roomRef.child('ans_' + qIdx);
+  _answerWatchRef.on('value', snap => {
+    const answeredCount = snap.numChildren();
+    const totalPlayers  = allPlayers.length;
+    const counter = document.getElementById('q-counter');
+    if (counter && isHost) {
+      counter.textContent =
+        `คำถาม ${qIdx + 1} / ${currentSet.questions.length}   |   ${answeredCount}/${totalPlayers} ตอบแล้ว`;
+    }
+    if (totalPlayers > 0 && answeredCount >= totalPlayers && !_revealPending) {
+      _revealPending = true;
+      clearInterval(timerID);
+      roomRef.update({ status: 'reveal', currentQ: qIdx });
     }
   });
 }
@@ -681,10 +702,23 @@ function renderQuestion(room) {
   _revealPending = false;
 
   const q = currentSet.questions[currentQ];
-  document.getElementById('q-counter').textContent =
-    `คำถาม ${currentQ + 1} / ${currentSet.questions.length}`;
-  document.getElementById('question-text').textContent = q.q;
-  buildChoiceButtons(q.choices, selectAnswerOnline);
+
+  if (isHost) {
+    document.getElementById('q-counter').textContent =
+      `คำถาม ${currentQ + 1} / ${currentSet.questions.length}   |   0/${allPlayers.length} ตอบแล้ว`;
+    document.getElementById('question-text').textContent = q.q;
+    buildChoiceButtons(q.choices, null);
+    document.querySelectorAll('.choice-btn').forEach(btn => {
+      btn.disabled = true;
+      btn.style.opacity = '0.55';
+      btn.style.cursor  = 'default';
+    });
+  } else {
+    document.getElementById('q-counter').textContent =
+      `คำถาม ${currentQ + 1} / ${currentSet.questions.length}`;
+    document.getElementById('question-text').textContent = q.q;
+    buildChoiceButtons(q.choices, selectAnswerOnline);
+  }
 
   timeLeft = MAX_TIME;
   if (room.qStartTime) {
@@ -725,7 +759,7 @@ function buildChoiceButtons(choices, handler) {
     btn.className = 'choice-btn';
     btn.style.background = CHOICE_COLORS[i];
     btn.innerHTML = `<span class="choice-icon">${ICONS[i]}</span>${c}`;
-    btn.onclick = () => handler(i);
+    if (handler) btn.onclick = () => handler(i);
     el.appendChild(btn);
   });
 }
@@ -831,6 +865,7 @@ async function selectAnswerOnline(idx) {
   try {
     const newScore = me ? me.score : pts;
     await roomRef.child('players/' + myPlayerId + '/score').set(newScore);
+    await roomRef.child('ans_' + currentQ + '/' + myPlayerId).set(1);
   } catch(e) {}
 }
 
@@ -847,20 +882,27 @@ function onlineTimeUp() {
 // ─────────────────────────────────────────────────────────────────
 function doReveal(room) {
   clearInterval(timerID);
-  const q   = currentSet.questions[room.currentQ];
-  const ok  = myAnswerIdx === q.answer;
-  const pts = ok ? calcPts(Math.max(0, timeLeft)) : 0;
-
-  highlightChoices(myAnswerIdx, q.answer);
-  showResult(ok, pts, q.choices[q.answer], true);
+  const q = currentSet.questions[room.currentQ];
 
   if (isHost) {
-    setTimeout(() => {
-      if (!_revealPending) return;
-      roomRef.update({ status:'midlb', currentQ: room.currentQ });
-    }, 2500);
+    document.querySelectorAll('.choice-btn').forEach((btn, i) => {
+      btn.disabled = true;
+      btn.style.opacity = i === q.answer ? '1' : '0.35';
+      if (i === q.answer) btn.classList.add('correct');
+    });
+    document.getElementById('res-icon').textContent = '📊';
+    document.getElementById('res-msg').textContent  = 'เฉลยคำตอบ';
+    document.getElementById('res-pts').textContent  = '';
+    document.getElementById('res-ans').textContent  = 'คำตอบที่ถูก: ' + q.choices[q.answer];
+    document.getElementById('res-wait-msg').textContent = '⏳ กำลังรวบรวมคะแนน...';
+    show('screen-result');
+    setTimeout(() => roomRef.update({ status:'midlb', currentQ: room.currentQ }), 3000);
+  } else {
+    const ok  = myAnswerIdx === q.answer;
+    const pts = ok ? calcPts(Math.max(0, timeLeft)) : 0;
+    highlightChoices(myAnswerIdx, q.answer);
+    showResult(ok, pts, q.choices[q.answer], true);
   }
-  _revealPending = true;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -872,7 +914,7 @@ function showResult(ok, pts, correctText, isOnlineReveal) {
   document.getElementById('res-pts').textContent  = ok ? `+${pts} คะแนน` : '0 คะแนน';
   document.getElementById('res-ans').textContent  = `คำตอบที่ถูก: ${correctText}`;
   document.getElementById('res-wait-msg').textContent =
-    isOnlineReveal ? '⏳ รอผู้เล่นอื่น...' : '⏳ กำลังรวบรวมคะแนน...';
+    isOnlineReveal ? '⏳ รอ Host เริ่มคำถามถัดไป...' : '⏳ กำลังรวบรวมคะแนน...';
   show('screen-result');
 
   if (!isOnlineReveal) {
@@ -937,6 +979,7 @@ async function proceedNextQuestion() {
   currentQ++;
 
   if (isOnline) {
+    if (_answerWatchRef) { _answerWatchRef.off(); _answerWatchRef = null; }
     if (currentQ < currentSet.questions.length) {
       _revealPending = false;
       await roomRef.update({
@@ -1111,6 +1154,7 @@ function restartGame() {
   stopFireworks();
   stopBGM();
   clearInterval(timerID);
+  if (_answerWatchRef) { _answerWatchRef.off(); _answerWatchRef = null; }
   fbOffAll();
 
   roomRef    = null;
