@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -31,10 +32,14 @@
 
   <!-- DASHBOARD SCREEN -->
   <div id="screen-dashboard" class="screen">
-    <div class="stitle">📊 ประวัติการเล่น</div>
+    <div class="stitle">📊 Admin Dashboard</div>
     <div id="dashboard-user" class="dash-user"></div>
+    <div id="dashboard-stats" class="dash-stats"></div>
+    <div class="dash-toolbar">
+      <button class="dash-export-btn" onclick="exportDashboardXLSX()">📥 Export .xlsx</button>
+      <button class="btn-sec sml" onclick="show('screen-menu')">← กลับ</button>
+    </div>
     <div id="dashboard-list" class="dashboard-list"></div>
-    <button class="btn-sec sml" style="margin-top:14px" onclick="show('screen-menu')">← กลับ</button>
   </div>
 
   <!-- ① MENU -->
