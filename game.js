@@ -100,6 +100,7 @@ let db           = null;
 let _fbListeners = [];
 let _revealPending = false;
 let _answerWatchRef = null;
+let _muted         = false;
 
 // ─────────────────────────────────────────────────────────────────
 //  FIREBASE INIT
@@ -139,6 +140,7 @@ function ac() {
 }
 
 function beepAt(freq, dur, type, vol, when) {
+  if (_muted) return;
   try {
     const ctx = ac();
     const o = ctx.createOscillator();
@@ -190,6 +192,12 @@ function startBGM() {
 function stopBGM() {
   bgmActive = false;
   if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
+}
+
+function toggleMute() {
+  _muted = !_muted;
+  const btn = document.getElementById('mute-btn');
+  if (btn) btn.textContent = _muted ? '🔇' : '🔊';
 }
 
 function _bgmTick() {
@@ -645,8 +653,7 @@ async function startGame() {
   sfxStart();
 
   if (isOnline) {
-    const updates = { status:'question', currentQ:0,
-      qStartTime: firebase.database.ServerValue.TIMESTAMP };
+    const updates = { status:'question', currentQ:0 };
     allPlayers.forEach(p => { updates[`players/${p.id}/score`] = 0; });
     await roomRef.update(updates);
   } else {
@@ -721,10 +728,6 @@ function renderQuestion(room) {
   }
 
   timeLeft = MAX_TIME;
-  if (room.qStartTime) {
-    const elapsed = Math.floor((Date.now() - room.qStartTime) / 1000);
-    timeLeft = Math.max(0, MAX_TIME - elapsed);
-  }
 
   startTimerBar(timeLeft);
   clearInterval(timerID);
@@ -942,15 +945,27 @@ function showMidLeaderboard() {
 
   document.getElementById('mid-lb-qnum').textContent = currentQ + 1;
 
-  const isLast = currentQ + 1 >= currentSet.questions.length;
-  document.getElementById('mid-lb-sub').textContent =
-    isLast ? '🏁 คำถามสุดท้าย!' : `เหลืออีก ${currentSet.questions.length - currentQ - 1} คำถาม`;
+  const isLast  = currentQ + 1 >= currentSet.questions.length;
+  const nextBtn = document.getElementById('mid-lb-next-btn');
+  const waitMsg = document.getElementById('mid-lb-wait');
 
-  const nextBtn  = document.getElementById('mid-lb-next-btn');
-  const waitMsg  = document.getElementById('mid-lb-wait');
-  nextBtn.textContent = isLast ? '🏆 ดูผลสรุป' : 'ถัดไป →';
+  if (isLast) {
+    document.getElementById('mid-lb-sub').textContent = '🎊 จบครบทุกข้อแล้ว!';
+    document.getElementById('mid-lb-list').innerHTML =
+      '<div class="mid-lb-final-msg">🏁 เกมส์จบแล้ว! รอดูผลสรุปสุดท้าย...</div>';
+    nextBtn.textContent   = '🏆 ดูผลสรุปสุดท้าย';
+    nextBtn.style.display = isHost ? '' : 'none';
+    waitMsg.textContent   = '⏳ รอ Host ประกาศผลสุดท้าย...';
+    waitMsg.style.display = isHost ? 'none' : '';
+    show('screen-mid-lb');
+    return;
+  }
+
+  document.getElementById('mid-lb-sub').textContent =
+    `เหลืออีก ${currentSet.questions.length - currentQ - 1} คำถาม`;
+  nextBtn.textContent   = 'ถัดไป →';
   nextBtn.style.display = isHost ? '' : 'none';
-  waitMsg.style.display  = isHost ? 'none' : '';
+  waitMsg.style.display = isHost ? 'none' : '';
 
   document.getElementById('mid-lb-list').innerHTML = top10.map((p, i) => {
     const gained    = p.score - (prevScores[p.name] || 0);
@@ -984,8 +999,7 @@ async function proceedNextQuestion() {
       _revealPending = false;
       await roomRef.update({
         status:     'question',
-        currentQ,
-        qStartTime: firebase.database.ServerValue.TIMESTAMP
+        currentQ
       });
     } else {
       await roomRef.update({ status:'final', currentQ });
