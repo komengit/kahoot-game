@@ -71,6 +71,12 @@ const BOT_DATA = [
 ];
 
 // ─────────────────────────────────────────────────────────────────
+//  GOOGLE SHEETS WEBHOOK  (optional)
+//  ► สร้าง Google Apps Script → Deploy → ใส่ URL ด้านล่าง
+// ─────────────────────────────────────────────────────────────────
+const SHEETS_WEBHOOK_URL = '';  // ← วาง Web App URL ที่นี่
+
+// ─────────────────────────────────────────────────────────────────
 //  GAME STATE
 // ─────────────────────────────────────────────────────────────────
 let currentSet    = DEFAULT_SET;
@@ -103,6 +109,12 @@ let _answerWatchRef = null;
 let _muted         = false;
 
 // ─────────────────────────────────────────────────────────────────
+//  AUTH STATE
+// ─────────────────────────────────────────────────────────────────
+let currentUser = null;
+let _cloudSets  = [];
+
+// ─────────────────────────────────────────────────────────────────
 //  FIREBASE INIT
 // ─────────────────────────────────────────────────────────────────
 function initFirebase() {
@@ -128,6 +140,108 @@ function setModeBadge(online) {
   el.textContent = online ? '🌐 Online Mode' : '🤖 Local Mode';
   el.className   = 'mode-badge ' + (online ? 'online' : 'local');
 }
+
+// ─────────────────────────────────────────────────────────────────
+//  FIREBASE AUTH
+// ─────────────────────────────────────────────────────────────────
+function initAuth() {
+  if (!isOnline || typeof firebase.auth !== 'function') return;
+  firebase.auth().onAuthStateChanged(async user => {
+    currentUser = user;
+    _updateMenuUI();
+    if (user) await _loadCloudSets();
+    else _cloudSets = [];
+  });
+}
+
+async function _loadCloudSets() {
+  if (!currentUser || !db) return;
+  try {
+    const snap = await db.ref('users/' + currentUser.uid + '/sets').once('value');
+    const data = snap.val();
+    if (data) {
+      _cloudSets = Object.values(data);
+    } else {
+      // First login: migrate localStorage sets to cloud
+      const local = JSON.parse(localStorage.getItem('qb_sets') || '[]');
+      _cloudSets = local;
+      if (local.length > 0) {
+        const obj = {};
+        local.forEach(s => { obj[s.id] = s; });
+        await db.ref('users/' + currentUser.uid + '/sets').set(obj);
+      }
+    }
+  } catch(e) { console.warn('loadCloudSets', e); }
+}
+
+function _updateMenuUI() {
+  const bar     = document.getElementById('menu-user-bar');
+  const nameEl  = document.getElementById('menu-user-name');
+  const dashBtn = document.getElementById('dash-btn');
+  const loginBtn= document.getElementById('login-btn-menu');
+  if (!bar) return;
+  if (currentUser) {
+    bar.style.display     = '';
+    if (nameEl)   nameEl.textContent  = '👤 ' + currentUser.email;
+    if (dashBtn)  dashBtn.style.display  = '';
+    if (loginBtn) loginBtn.style.display = 'none';
+  } else {
+    bar.style.display = 'none';
+    if (dashBtn)  dashBtn.style.display  = 'none';
+    if (loginBtn) loginBtn.style.display = '';
+  }
+}
+
+async function doLogin() {
+  const email = (document.getElementById('login-email')?.value || '').trim();
+  const pass  = document.getElementById('login-pass')?.value || '';
+  const errEl = document.getElementById('login-error');
+  if (errEl) errEl.textContent = '';
+  if (!email || !pass) { if (errEl) errEl.textContent = '⚠️ กรุณากรอก Email และรหัสผ่าน'; return; }
+  try {
+    if (errEl) errEl.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+    await firebase.auth().signInWithEmailAndPassword(email, pass);
+    sfxCorrect(); show('screen-menu');
+  } catch(e) {
+    if (errEl) errEl.textContent = '⚠️ ' + (
+      e.code === 'auth/wrong-password'    ? 'รหัสผ่านไม่ถูกต้อง' :
+      e.code === 'auth/user-not-found'    ? 'ไม่พบบัญชีนี้' :
+      e.code === 'auth/invalid-email'     ? 'Email ไม่ถูกต้อง' :
+      e.code === 'auth/invalid-credential'? 'Email หรือรหัสผ่านไม่ถูกต้อง' :
+      e.code === 'auth/too-many-requests' ? 'ลองใหม่ภายหลัง (ถูกล็อกชั่วคราว)' :
+      e.message
+    );
+  }
+}
+
+async function doRegister() {
+  const email = (document.getElementById('login-email')?.value || '').trim();
+  const pass  = document.getElementById('login-pass')?.value || '';
+  const errEl = document.getElementById('login-error');
+  if (errEl) errEl.textContent = '';
+  if (!email || !pass) { if (errEl) errEl.textContent = '⚠️ กรุณากรอก Email และรหัสผ่าน'; return; }
+  if (pass.length < 6) { if (errEl) errEl.textContent = '⚠️ รหัสผ่านต้องมีอย่างน้อย 6 ตัว'; return; }
+  try {
+    if (errEl) errEl.textContent = '⏳ กำลังสร้างบัญชี...';
+    await firebase.auth().createUserWithEmailAndPassword(email, pass);
+    sfxCorrect(); show('screen-menu');
+  } catch(e) {
+    if (errEl) errEl.textContent = '⚠️ ' + (
+      e.code === 'auth/email-already-in-use' ? 'Email นี้มีบัญชีแล้ว — ลองเข้าสู่ระบบ' :
+      e.code === 'auth/weak-password'         ? 'รหัสผ่านอ่อนเกินไป' :
+      e.message
+    );
+  }
+}
+
+function doLogout() {
+  firebase.auth().signOut().then(() => {
+    currentUser = null; _cloudSets = [];
+    _updateMenuUI(); sfxClick();
+  });
+}
+
+function skipLogin() { sfxClick(); show('screen-menu'); }
 
 // ─────────────────────────────────────────────────────────────────
 //  AUDIO  (Web Audio API — no external files)
@@ -220,14 +334,21 @@ function _bgmTick() {
 //  LOCAL STORAGE
 // ─────────────────────────────────────────────────────────────────
 function getSets() {
+  if (currentUser) return [DEFAULT_SET, ..._cloudSets];
   try {
     const raw = localStorage.getItem('qb_sets');
     return [DEFAULT_SET, ...(raw ? JSON.parse(raw) : [])];
   } catch(e) { return [DEFAULT_SET]; }
 }
-function persistSets(sets) {
-  try { localStorage.setItem('qb_sets', JSON.stringify(sets.filter(s => s.id !== 'default'))); }
-  catch(e) {}
+async function persistSets(sets) {
+  const custom = sets.filter(s => s.id !== 'default');
+  if (currentUser && db) {
+    _cloudSets = custom;
+    const obj  = {};
+    custom.forEach(s => { obj[s.id] = s; });
+    await db.ref('users/' + currentUser.uid + '/sets').set(custom.length ? obj : null);
+  }
+  try { localStorage.setItem('qb_sets', JSON.stringify(custom)); } catch(e) {}
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -300,10 +421,10 @@ function renderSets() {
 
 function selectSet(id) { sfxClick(); selectedSetId = id; renderSets(); }
 
-function deleteSet(id) {
+async function deleteSet(id) {
   if (!confirm('ลบชุดคำถามนี้?')) return;
   const sets = getSets().filter(s => s.id !== id);
-  persistSets(sets);
+  await persistSets(sets);
   if (selectedSetId === id) selectedSetId = 'default';
   renderSets();
 }
@@ -366,7 +487,7 @@ function addQ() {
 }
 function removeQ(i) { editorQs.splice(i, 1); renderEditor(); }
 
-function saveSet() {
+async function saveSet() {
   const name = document.getElementById('set-name-input').value.trim();
   if (!name) { alert('กรุณาใส่ชื่อชุดคำถาม'); return; }
   const valid = editorQs.filter(q => q.q.trim() && q.choices.every(c => c.trim()));
@@ -380,7 +501,7 @@ function saveSet() {
     sets.push({ id: nid, name, questions: valid });
     selectedSetId = nid;
   }
-  persistSets(sets); sfxCorrect(); showSets();
+  await persistSets(sets); sfxCorrect(); showSets();
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1048,6 +1169,76 @@ function showFinal() {
   show('screen-final');
   document.getElementById('screen-final').scrollTop = 0;
   setTimeout(startFireworks, 400);
+  saveGameResult();
+}
+
+
+// ─────────────────────────────────────────────────────────────────
+//  SAVE GAME RESULT  (Cloud + Google Sheets webhook)
+// ─────────────────────────────────────────────────────────────────
+async function saveGameResult() {
+  if (!currentUser || !db) return;
+  try {
+    const sorted = [...allPlayers].sort((a, b) => b.score - a.score);
+    const result = {
+      setName:     currentSet.name,
+      date:        new Date().toISOString(),
+      playerCount: allPlayers.length,
+      players:     sorted.map(p => ({ name: p.name, score: p.score })),
+      isOnline,
+      roomCode:    roomCode || null,
+    };
+    await db.ref('users/' + currentUser.uid + '/results').push(result);
+    if (SHEETS_WEBHOOK_URL) {
+      fetch(SHEETS_WEBHOOK_URL, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result)
+      }).catch(() => {});
+    }
+  } catch(e) { console.warn('saveGameResult', e); }
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  DASHBOARD
+// ─────────────────────────────────────────────────────────────────
+async function showDashboard() {
+  sfxClick();
+  if (!currentUser) { show('screen-login'); return; }
+  const el = document.getElementById('dashboard-list');
+  const du = document.getElementById('dashboard-user');
+  if (du) du.textContent = '👤 ' + currentUser.email;
+  if (el) el.innerHTML = '<p style="opacity:.6;text-align:center">⏳ กำลังโหลด...</p>';
+  show('screen-dashboard');
+  try {
+    const snap = await db.ref('users/' + currentUser.uid + '/results')
+      .orderByChild('date').limitToLast(20).once('value');
+    const data = snap.val();
+    if (!data || !el) {
+      if (el) el.innerHTML = '<p style="opacity:.6;text-align:center">ยังไม่มีประวัติการเล่น</p>';
+      return;
+    }
+    const rows = Object.values(data).reverse().map(r => {
+      const d    = new Date(r.date);
+      const date = d.toLocaleDateString('th-TH', { day:'2-digit', month:'short', year:'numeric' });
+      const time = d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+      const top3 = (r.players || []).slice(0, 3);
+      const medals = ['🥇','🥈','🥉'];
+      const podium = top3.map((p,i) =>
+        '<span class="dash-player">' + medals[i] + ' ' + p.name +
+        ' <b>' + (p.score != null ? p.score.toLocaleString() : 0) + ' pt</b></span>'
+      ).join('');
+      return '<div class="dash-card">' +
+        '<div class="dash-card-title">' + (r.setName || '—') + '</div>' +
+        '<div class="dash-card-meta">' + date + ' ' + time +
+        ' · ' + (r.playerCount || '?') + ' คน' +
+        ' · ' + (r.isOnline ? '🌐 Online' : '🤖 Local') + '</div>' +
+        '<div class="dash-card-players">' + podium + '</div></div>';
+    });
+    el.innerHTML = rows.join('');
+  } catch(e) {
+    if (el) el.innerHTML = '<p style="color:#e74c3c">เกิดข้อผิดพลาด: ' + e.message + '</p>';
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1189,6 +1380,7 @@ function restartGame() {
 // ─────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   initFirebase();
+  initAuth();
 
   const params    = new URLSearchParams(location.search);
   const roomParam = params.get('room');
