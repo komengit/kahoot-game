@@ -554,3 +554,35 @@ button:active{transform:translateY(0)}
 .dash-session{
   font-size:.7rem;opacity:.45;font-weight:400;margin-left:6px;
 }
+
+
+/* ══════════════════════════════════════════════════════
+   MOBILE — FINAL SCREEN COMPACT (≤480px or short screen)
+══════════════════════════════════════════════════════ */
+@media screen and (max-width:480px){
+  #screen-final{
+    padding-top:6px;padding-bottom:16px;
+  }
+  /* Shrink champion area */
+  .champ-section{margin-bottom:2px}
+  .champ-char-display{transform:scale(0.75);margin-bottom:0}
+  .champ-title{font-size:1.05rem;margin-bottom:1px}
+  .champ-name{font-size:1.25rem;margin-bottom:1px}
+  .champ-score{font-size:.85rem;margin-bottom:2px}
+  .char-crown-pad{height:12px}
+  /* Shrink podium */
+  .podium-wrap{margin:6px 0}
+  .podium-col{width:90px}
+  .podium-block{font-size:1.3rem;padding-top:6px}
+  .podium-block.rank1{height:80px}
+  .podium-block.rank2{height:60px}
+  .podium-block.rank3{height:44px}
+  .podium-pname{font-size:.63rem;max-width:86px}
+  .podium-pts{font-size:.58rem;margin-bottom:2px}
+  /* Shrink leaderboard */
+  .leaderboard{max-height:110px;padding:8px;margin-bottom:10px}
+  .lb-row{padding:5px 8px;font-size:.8rem;margin-bottom:3px}
+  /* Buttons row stays compact */
+  .final-btns{gap:8px}
+  .final-btns button{padding:10px 22px;font-size:.88rem}
+}
