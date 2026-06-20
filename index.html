@@ -9,11 +9,40 @@
   <!-- Firebase v8 compat -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 </head>
 <body>
 
+  <!-- LOGIN SCREEN -->
+  <div id="screen-login" class="screen">
+    <div class="logo">AMD Quiz</div>
+    <div class="tagline">เข้าสู่ระบบเพื่อบันทึกชุดคำถามและดูสถิติ</div>
+    <div class="login-form">
+      <input id="login-email" type="email" placeholder="Email" class="wide-input" autocomplete="email"/>
+      <input id="login-pass" type="password" placeholder="รหัสผ่าน" class="wide-input" autocomplete="current-password"/>
+      <div id="login-error" class="login-error"></div>
+      <div class="login-btns">
+        <button onclick="doLogin()">เข้าสู่ระบบ</button>
+        <button class="btn-sec" onclick="doRegister()">สร้างบัญชีใหม่</button>
+      </div>
+      <button class="btn-sec sml login-skip" onclick="skipLogin()">ข้ามการเข้าสู่ระบบ →</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD SCREEN -->
+  <div id="screen-dashboard" class="screen">
+    <div class="stitle">📊 ประวัติการเล่น</div>
+    <div id="dashboard-user" class="dash-user"></div>
+    <div id="dashboard-list" class="dashboard-list"></div>
+    <button class="btn-sec sml" style="margin-top:14px" onclick="show('screen-menu')">← กลับ</button>
+  </div>
+
   <!-- ① MENU -->
   <div id="screen-menu" class="screen active">
+    <div id="menu-user-bar" class="menu-user-bar" style="display:none">
+      <span id="menu-user-name" class="menu-user-name"></span>
+      <button class="btn-icon" onclick="doLogout()" style="padding:4px 8px!important;font-size:.8rem!important">🚪 ออก</button>
+    </div>
     <div class="logo">AMD Quiz Game</div>
     <p class="tagline">เกมส์ตอบคำถามสุดมันส์!</p>
     <div id="mode-badge" class="mode-badge local">🤖 Local Mode</div>
@@ -22,6 +51,8 @@
       <button onclick="showJoin()">🚪 เข้าร่วมห้อง</button>
       <button class="btn-sec" onclick="showEditor(null)">✏️ สร้างชุดคำถาม</button>
     </div>
+      <button id="dash-btn" class="btn-sec sml" onclick="showDashboard()" style="display:none;margin-top:6px">📊 Dashboard</button>
+    <button id="login-btn-menu" class="btn-sec sml" onclick="show('screen-login')" style="margin-top:6px">🔑 เข้าสู่ระบบ / คลาวด์</button>
   </div>
 
   <!-- ② SET PICKER -->
